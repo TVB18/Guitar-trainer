@@ -44,7 +44,6 @@ let triadStreak = 0;
 let triadHeatmapShown = false;
 let triadHeatmapSince = null;
 let triadPrefix = { sharp: false, minor: false };
-let triadResetTimer = null;
 
 function triadMode() {
   return trainingMode === "triads";
@@ -138,7 +137,7 @@ function triadChords(needVoicing) {
 
 function chooseTriadChord(needVoicing) {
   const previous = triadQuestion ? chordKey(triadQuestion.chord) : null;
-  let chords = triadChords(needVoicing);
+  let chords = practiceFilter(triadChords(needVoicing), triadItem);
   if (chords.length > 1) chords = chords.filter(chord => chordKey(chord) !== previous);
   const total = chords.reduce((sum, chord) => sum + triadWeight(chord), 0);
   let pick = Math.random() * total;
@@ -173,6 +172,7 @@ function chooseTriadQuestion() {
   }
   triadQuestion = question;
   triadPrefix = { sharp: false, minor: false };
+  if (chord) startItem(triadItem(chord));
 }
 
 function restartTriadRun(start = false) {
@@ -186,6 +186,7 @@ function restartTriadRun(start = false) {
   lastCorrectAt = null;
   triadBlock = { type: null, left: 0 };
   runLength = readRunLength("run-length");
+  startRunItems();
   chooseTriadQuestion();
   renderExercise();
   updateRunTime();
@@ -216,6 +217,7 @@ function triadQuestionDone(midi = null) {
     triadStreak++;
     triadStats.bestStreak = Math.max(triadStats.bestStreak, triadStreak);
   }
+  recordItem(currentItem, { ok: !triadQuestion.mistake, time: elapsed });
   runCount++;
   saveTriadStats();
   if (runCount >= runLength) {
@@ -243,6 +245,7 @@ function finishTriadRun(midi = null) {
   triadStats.last = entry;
   triadStats.top10 = [...triadStats.top10, entry].sort((a, b) => a.average - b.average || a.mistakes - b.mistakes).slice(0, 10);
   saveTriadStats();
+  recordRun(entry.types);
   updateRunTime();
   renderExercise();
   const summary = `Run complete in ${(entry.time / 1000).toFixed(1)} s (${(entry.average / 1000).toFixed(2)} s/question) with ${entry.mistakes} ${entry.mistakes === 1 ? "mistake" : "mistakes"}!`;
@@ -308,6 +311,31 @@ function handleTriadNote(midi, time, heldFor) {
   }
   renderTriad();
   setExerciseFeedback("correct", midi, "Correct. Play the next note of the triad.");
+}
+
+// Show answer, or the time limit: the question counts as missed and the run goes on.
+function triadGiveUp(timeout) {
+  if (!triadAnswerAllowed()) return;
+  const question = triadQuestion;
+  const elapsed = Date.now() - question.startedAt;
+  const key = chordKey(question.chord);
+  question.mistake = true;
+  runMistakes++;
+  triadStreak = 0;
+  triadStats.times[key] = [...(triadStats.times[key] || []), Math.round(Math.max(elapsed, heatSlow))].slice(-heatHistory);
+  recordItem(currentItem, { ok: false, time: elapsed, timeout });
+  const name = triadChordName(question.chord);
+  const answer = question.type === "spell" ? `${name} is ${spellTriad(question.chord).join(" – ")}.` : `It was ${name}.`;
+  runCount++;
+  saveTriadStats();
+  if (runCount >= runLength) {
+    finishTriadRun();
+    return;
+  }
+  chooseTriadQuestion();
+  renderExercise();
+  updateRunTime();
+  setExerciseFeedback("error", null, `${timeout ? "Time's up!" : "Answer:"} ${answer}`);
 }
 
 const triadKeyPcs = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
@@ -482,25 +510,6 @@ function renderTriadScoreboard() {
     : "<li class=\"score-empty\">No runs yet</li>";
 }
 
-function resetTriadStats() {
-  if (!triadMode()) return;
-  if (triadResetTimer === null) {
-    exerciseUI["reset-stats"].textContent = "Click again to confirm";
-    triadResetTimer = setTimeout(() => {
-      triadResetTimer = null;
-      exerciseUI["reset-stats"].textContent = "Reset stats";
-    }, 4000);
-    return;
-  }
-  clearTimeout(triadResetTimer);
-  triadResetTimer = null;
-  exerciseUI["reset-stats"].textContent = "Reset stats";
-  triadStats = { times: {}, top10: [], bestStreak: 0 };
-  triadStreak = 0;
-  saveTriadStats();
-  renderExercise();
-}
-
 // Type 3 excludes types 1 and 2, and the other way round.
 function setTriadTypes(types) {
   triadTypes.clear();
@@ -511,7 +520,7 @@ function setTriadTypes(types) {
 }
 
 function initTriadTrainer() {
-  // Answer buttons, keys, Heatmap and Reset stats are wired in initClickTrainer.
+  // Answer buttons, keys and Heatmap are wired in initClickTrainer; Reset stats in progress-stats.js.
   loadTriadStats();
   for (const type of Object.keys(triadTypeNames)) {
     exerciseUI[`triad-type-${type}`].addEventListener("change", () => {

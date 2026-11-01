@@ -14,6 +14,29 @@ Spell the triad. All modes share one fretboard view (open string through fret
 15), with the requested string coloured and its note in a label beside the
 board.
 
+## Layout and progress
+
+The page has one Settings frame on top (training mode, practice set, question
+types, run length, strings, flow and microphone); groups that do not apply to
+the current mode are hidden. Below it: the Question card with Show hint, Show
+answer and the run buttons; the Fretboard with the answer grid; and the Stats
+card. Modes that use the microphone also show the Listening box (note, tuning,
+Hz and cents). A second row shows a per-item table (worst first), charts of
+accuracy and average time per run, a heatmap with the top 5 fails, and the
+Top 10 runs.
+
+- Practice set: All, Weakest 5 (lowest accuracy, then slowest) or Missed in
+  last run. When nothing matches, all items are used.
+- Review missed starts a new run with the items missed in the last run.
+- Show answer reveals the answer; the item counts as missed.
+- Time limit (Off–60 s per question or exercise): a bar runs down; when time
+  is up the item counts as missed and the answer or hint is shown.
+- Progress is stored per mode in the browser (`guitar-trainer-progress`).
+  Reset stats asks for a second click to confirm.
+- Dark neon is the default style; Classic green stays available.
+
+The stats code lives in `progress-stats.js`.
+
 In the two scale modes the trainer assigns a natural root (A–G), string, side
 and major/minor pentatonic scale. The chord shape is derived from the root, string and side;
 it is not selectable. The scale may contain sharps or flats. New exercise

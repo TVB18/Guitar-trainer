@@ -18,7 +18,6 @@ let clickStreak = 0;
 let heatmapShown = false;
 let heatmapSince = null;
 let sharpPending = false;
-let resetStatsTimer = null;
 
 function clickMode() {
   return trainingMode === "recognition-click";
@@ -113,8 +112,10 @@ function nearestRange(fret) {
 function chooseClickQuestion() {
   const type = nextClickType();
   const previous = clickQuestion?.seed;
-  const positions = clickPositions().filter(position => !previous || positionKey(position) !== positionKey(previous));
-  const seed = weightedChoice(positions.length ? positions : clickPositions());
+  // The practice set (all, weakest 5, missed) narrows the positions first.
+  const pool = practiceFilter(clickPositions(), positionItem);
+  const positions = pool.filter(position => !previous || positionKey(position) !== positionKey(previous));
+  const seed = weightedChoice(positions.length ? positions : pool);
   const pc = seed.midi % 12;
   const question = { type, seed, pc, targets: [], found: new Set(), wrong: [], mistake: false, frame: null, highlightFret: null, startedAt: Date.now() };
   if (type === "name") {
@@ -150,6 +151,7 @@ function chooseClickQuestion() {
   }
   clickQuestion = question;
   sharpPending = false;
+  startItem(positionItem(seed));
 }
 
 function restartClickRun(start = false) {
@@ -163,6 +165,7 @@ function restartClickRun(start = false) {
   // The streak carries over between runs; only a wrong answer resets it.
   clickBlock = { type: null, left: 0 };
   runLength = readRunLength("run-length");
+  startRunItems();
   chooseClickQuestion();
   renderExercise();
   updateRunTime();
@@ -201,6 +204,7 @@ function clickCorrect(position) {
     clickStreak++;
     clickStats.bestStreak = Math.max(clickStats.bestStreak, clickStreak);
   }
+  recordItem(currentItem, { ok: !clickQuestion.mistake, time: elapsed });
   runCount++;
   saveClickStats();
   if (runCount >= runLength) {
@@ -227,6 +231,7 @@ function finishClickRun() {
   clickStats.last = entry;
   clickStats.top10 = [...clickStats.top10, entry].sort((a, b) => a.average - b.average || a.mistakes - b.mistakes).slice(0, 10);
   saveClickStats();
+  recordRun(entry.types);
   updateRunTime();
   renderExercise();
   const summary = `Run complete in ${(entry.time / 1000).toFixed(1)} s (${(entry.average / 1000).toFixed(2)} s/question) with ${entry.mistakes} ${entry.mistakes === 1 ? "mistake" : "mistakes"}!`;
@@ -257,6 +262,31 @@ function clickCell(string, fret) {
   clickMistake(clickQuestion.type === "find"
     ? `That is ${name}. Find every ${recognitionNoteName(clickQuestion.pc)} inside the frame.`
     : `That is ${name}, or not the nearest one. Look near fret ${clickQuestion.highlightFret}.`);
+}
+
+// Show answer, or the time limit: the question counts as missed and the run goes on.
+function clickGiveUp(timeout) {
+  if (!clickAnswerAllowed()) return;
+  const question = clickQuestion;
+  const elapsed = Date.now() - question.startedAt;
+  question.mistake = true;
+  runMistakes++;
+  clickStreak = 0;
+  for (const position of question.targets) recordTime(position, Math.max(elapsed, heatSlow));
+  recordItem(currentItem, { ok: false, time: elapsed, timeout });
+  const name = recognitionNoteName(question.pc);
+  const places = question.targets.map(position => `${GuitarScales.strings.find(row => row.string === position.string).label}-string fret ${position.fret}`).join(", ");
+  const answer = question.type === "name" ? `It was ${name}.` : `${name} is at ${places}.`;
+  runCount++;
+  saveClickStats();
+  if (runCount >= runLength) {
+    finishClickRun();
+    return;
+  }
+  chooseClickQuestion();
+  renderExercise();
+  updateRunTime();
+  setExerciseFeedback("error", null, `${timeout ? "Time's up!" : "Answer:"} ${answer}`);
 }
 
 const keyPitchClasses = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
@@ -390,25 +420,6 @@ function renderScoreboard() {
     : "<li class=\"score-empty\">No runs yet</li>";
 }
 
-function resetClickStats() {
-  if (!clickMode()) return;
-  if (resetStatsTimer === null) {
-    exerciseUI["reset-stats"].textContent = "Click again to confirm";
-    resetStatsTimer = setTimeout(() => {
-      resetStatsTimer = null;
-      exerciseUI["reset-stats"].textContent = "Reset stats";
-    }, 4000);
-    return;
-  }
-  clearTimeout(resetStatsTimer);
-  resetStatsTimer = null;
-  exerciseUI["reset-stats"].textContent = "Reset stats";
-  clickStats = { times: {}, top10: [], bestStreak: 0 };
-  clickStreak = 0;
-  saveClickStats();
-  renderExercise();
-}
-
 function setClickTypes(types) {
   clickTypes.clear();
   for (const type of types) if (type in clickTypeNames) clickTypes.add(type);
@@ -435,7 +446,7 @@ function initClickTrainer() {
   });
   window.addEventListener("keydown", event => (triadMode() ? handleTriadKey : handleClickKey)(event));
   exerciseUI["toggle-heatmap"].addEventListener("click", () => (triadMode() ? toggleTriadHeatmap : toggleHeatmap)());
-  exerciseUI["reset-stats"].addEventListener("click", () => (triadMode() ? resetTriadStats : resetClickStats)());
+  // Reset stats is wired in progress-stats.js; it also clears these stats.
   for (const type of Object.keys(clickTypeNames)) {
     exerciseUI[`click-type-${type}`].addEventListener("change", () => {
       const checkbox = exerciseUI[`click-type-${type}`];

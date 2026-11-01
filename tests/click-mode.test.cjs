@@ -30,7 +30,8 @@ function answer(app) {
 
 test('the click mode shows its controls and needs no microphone', () => {
   const app = clickRun();
-  for (const id of ['click-types', 'scoreboard', 'toggle-heatmap', 'recognition-controls', 'frame-controls', 'recognition-board']) {
+  // The Top 10 card (scoreboard) is always shown now, in every mode.
+  for (const id of ['click-types', 'toggle-heatmap', 'recognition-controls', 'frame-controls', 'recognition-board']) {
     assert.equal(app.nodes[id].hidden, false, id);
   }
   assert.equal(app.nodes['run-length-label'].textContent, 'Questions per run');

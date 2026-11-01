@@ -323,7 +323,8 @@ test('HTML wiring uses unique IDs, loads data before the app, and provides red f
   const ids = [...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(html.indexOf('src="scale-patterns.js"') < html.indexOf('src="app.js"'));
-  assert.equal([...html.matchAll(/<select\b/g)].length, 4);
+  assert.equal([...html.matchAll(/<select\b/g)].length, 5);
+  assert.ok(html.indexOf('src="progress-stats.js"') < html.indexOf('src="app.js"'));
   assert.match(html, /<select id="audio-input"/);
   for (const id of Object.keys(trainer().nodes)) assert.ok(ids.includes(id), id);
   assert.match(css,/\.feedback-error\s*\{[^}]*color:\s*#b3261e/);

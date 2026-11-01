@@ -49,6 +49,7 @@ function trainer(sampleRate = 48000, sourceCode = code, attackNoise = 0) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'scale-patterns.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'click-trainer.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'triad-trainer.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'progress-stats.js'), 'utf8'), context);
   vm.runInContext(sourceCode, context);
   vm.runInContext('listening = true; analyser = testAnalyser; audioContext = { sampleRate: testSampleRate, state: "running", async close() { this.state = "closed"; } }; buffer = new Float32Array(2048);', context);
   const read = expression => vm.runInContext(expression, context);

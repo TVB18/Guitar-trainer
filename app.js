@@ -74,6 +74,10 @@ const exerciseUI = Object.fromEntries([
   "recognition-controls", "run-length", "run-time", "run-average", "recognition-notes",
   "starting-pitch", "requested-string", "string-selection-help", "note-region",
   "recognition-board", "board-note", "board-chord", "board-scroll", "frame-controls", "frame-frets", "frame-strings", "run-mistakes",
+  "practice-set", "time-limit", "time-limit-value", "time-bar", "time-bar-fill", "show-answer", "listener-card", "mic-note",
+  "types-group", "strings-group", "question-heading", "question-count", "answer-area", "answer-heading", "answer-caption",
+  "pitch-chips", "board-caption", "stat-tiles", "stat-last", "round-summary", "review-missed", "items-heading", "item-table",
+  "chart-accuracy", "chart-time", "time-chart-heading", "mini-heatmap", "mini-heat-caption", "top-fails", "top10-unit", "run-status-line",
   ...[1, 2, 3, 4, 5, 6].map(string => `train-string-${string}`)
 ].map(id => [id, document.getElementById(id)]));
 let exercise;
@@ -100,6 +104,10 @@ let runElapsed = 0;
 let runStartedAt = null;
 let runTimer = null;
 let runActive = false;
+// Set when the time limit ends a scale or chord exercise.
+let exerciseTimedOut = false;
+// A mistake on the current question, note or exercise.
+let itemMistake = false;
 // Continue automatically: the next exercise (or, in the recognition modes,
 // the next run) follows after a short countdown.
 let autoContinue = false;
@@ -303,9 +311,12 @@ function recognitionNoteName(midi) {
 function chooseRecognitionTarget() {
   // A different pitch prevents a sustained note from answering the next task.
   const targets = recognitionNotes === "all" ? allRecognitionTargets : recognitionTargets;
-  const choices = targets.filter(target => recognitionStrings.has(target.string) && target.midi !== recognitionTarget?.midi && target.midi !== heldNote);
+  let choices = practiceFilter(targets.filter(target => recognitionStrings.has(target.string)), positionItem);
+  const fresh = choices.filter(target => target.midi !== recognitionTarget?.midi && target.midi !== heldNote);
+  if (fresh.length) choices = fresh;
   recognitionTarget = choices[Math.floor(Math.random() * choices.length)];
   chooseRecognitionFrame();
+  startItem(positionItem(recognitionTarget));
 }
 
 function readRunLength(id) {
@@ -316,6 +327,11 @@ function readRunLength(id) {
 }
 
 function updateRunTime() {
+  if (timeLimitReached()) {
+    giveUpItem(true);
+    return;
+  }
+  renderStatTiles();
   const elapsed = runElapsed + (runStartedAt === null ? 0 : Date.now() - runStartedAt);
   if (!recognitionMode() && !questionMode()) {
     // Scale and chord modes count exercises; the clock only runs during an exercise.
@@ -347,7 +363,7 @@ function pauseRunClock() {
 
 function startRunClock() {
   if (!runActive || runCount >= runLength || runStartedAt !== null) return;
-  if (!recognitionMode() && !questionMode() && exerciseComplete()) return;
+  if (!recognitionMode() && !questionMode() && (exerciseComplete() || exerciseTimedOut)) return;
   runStartedAt = Date.now();
   updateRunTime();
 }
@@ -376,6 +392,7 @@ function restartExerciseRun() {
   runMistakes = 0;
   lastCorrectAt = null;
   runLength = readRunLength("exercise-run-length");
+  startRunItems();
   updateRunTime();
 }
 
@@ -388,6 +405,7 @@ function restartRecognition(start = false) {
   runMistakes = 0;
   lastCorrectAt = null;
   runLength = readRunLength("run-length");
+  startRunItems();
   chooseRecognitionTarget();
   renderExercise();
   updateRunTime();
@@ -516,7 +534,52 @@ function setExerciseFeedback(kind, midi, message) {
   exerciseUI["exercise-feedback"].textContent = message;
 }
 
+// Shows or hides the parts of the page that depend on the mode, then the
+// mode's own view and the stats panels.
 function renderExercise() {
+  const scales = !recognitionMode() && !questionMode();
+  const noMicrophone = clickMode() || (triadMode() && !triadSound());
+  exerciseUI["listener-card"].hidden = noMicrophone;
+  exerciseUI["mic-note"].hidden = !noMicrophone;
+  exerciseUI["types-group"].hidden = !questionMode();
+  exerciseUI["strings-group"].hidden = scales;
+  exerciseUI["show-answer"].hidden = scales;
+  exerciseUI["show-answer"].disabled = !runActive || runCount >= runLength;
+  exerciseUI["run-status-line"].hidden = scales;
+  exerciseUI["question-heading"].textContent = scales ? "Exercise" : recognitionMode() ? "Find the note" : "Question";
+  exerciseUI["pitch-chips"].hidden = true;
+  exerciseUI["answer-area"].hidden = false;
+  renderExerciseView();
+  renderAnswerArea();
+  renderProgress();
+}
+
+function renderAnswerArea() {
+  const board = { "recognition-visual": "the requested string is coloured · the frame holds the note", "recognition-click": "click a position or use the answer grid",
+    triads: "root yellow, 3 and 5 purple" }[trainingMode] || (chordMode() ? "play the chord shape one note at a time" : "start note amber · roots · played notes · Show hint for the pattern");
+  exerciseUI["board-caption"].textContent = board;
+  if (questionMode()) {
+    exerciseUI["answer-heading"].textContent = "Answer grid";
+    exerciseUI["answer-caption"].textContent = triadMode()
+      ? "keys C–B, H before a letter for a sharp, M for minor"
+      : "keys C–B, H before a letter for a sharp";
+    exerciseUI["answer-area"].hidden = exerciseUI["answer-buttons"].hidden;
+    return;
+  }
+  if (recognitionMode() || findingRoot()) {
+    exerciseUI["answer-area"].hidden = true;
+    return;
+  }
+  // Scale and chord modes: the pitches of the pattern, ticked when played.
+  const targets = [...targetPitches()].sort((a, b) => a - b);
+  exerciseUI["answer-heading"].textContent = "Still to play";
+  exerciseUI["answer-caption"].textContent = `${targets.length - playedPitches.size} left · pitch and octave`;
+  exerciseUI["pitch-chips"].hidden = false;
+  exerciseUI["pitch-chips"].innerHTML = targets.map(midi => playedPitches.has(midi)
+    ? `<span class="pitch done">✓ ${pitchLabel(midi)}</span>` : `<span class="pitch">${pitchLabel(midi)}</span>`).join("");
+}
+
+function renderExerciseView() {
   const click = questionMode();
   const recognition = recognitionMode() || click;
   exerciseUI["restart-exercise"].hidden = recognition;
@@ -528,7 +591,6 @@ function renderExercise() {
   exerciseUI["recognition-controls"].hidden = !recognition;
   exerciseUI["click-types"].hidden = !clickMode();
   exerciseUI["triad-types"].hidden = !triadMode();
-  exerciseUI["scoreboard"].hidden = !click;
   exerciseUI["toggle-heatmap"].hidden = !click;
   exerciseUI["answer-buttons"].hidden = true;
   exerciseUI["heatmap-legend"].hidden = true;
@@ -635,10 +697,12 @@ function restartExercise() {
     exerciseUI["pattern-hint"].textContent = "";
   }
   rootStarted = false;
+  exerciseTimedOut = false;
   playedPitches.clear();
   previousExerciseNote = null;
   exerciseMatches = 0;
   rootFrame = frameAround(startingRoot);
+  startItem(exerciseItem({ root: exercise.root, type: exercise.type, string: exercise.startingString, side: exercise.side }));
   // Keep heldNote: selecting/restarting while a note rings must not count it.
   renderExercise();
   if (listening) startRunClock();
@@ -657,6 +721,7 @@ function handleExerciseNote(midi, time = null, heldFor = Infinity) {
   }
   // During the countdown the finished frame stays; notes are not judged.
   if (nextExerciseTimer !== null) return;
+  if (exerciseTimedOut && !recognitionMode()) return;
   const wrong = recognitionMode()
     ? runCount < runLength && midi !== recognitionTarget.midi
     : !exerciseComplete() && (rootStarted ? !targetPitches().has(midi) : midi !== startingRoot.midi);
@@ -672,15 +737,18 @@ function handleExerciseNote(midi, time = null, heldFor = Infinity) {
     if (midi !== recognitionTarget.midi) {
       // heldNote already stops a ringing wrong note from counting twice.
       runMistakes++;
+      itemMistake = true;
       updateRunTime();
       setExerciseFeedback("error", midi, "Try again. Match the requested note and octave.");
       return;
     }
+    recordItem(currentItem, { ok: !itemMistake, time: itemElapsed() });
     runCount++;
     lastCorrectAt = time;
     if (runCount === runLength) {
       pauseRunClock();
       runActive = false;
+      recordRun();
       updateRunTime();
       const summary = `Run complete in ${(runElapsed / 1000).toFixed(1)} s with ${runMistakes} ${runMistakes === 1 ? "mistake" : "mistakes"}!`;
       if (autoContinue) scheduleNext("run-complete", midi, summary, "Next run");
@@ -695,6 +763,7 @@ function handleExerciseNote(midi, time = null, heldFor = Infinity) {
   // A wrong note during an unfinished exercise counts as a run mistake.
   if (wrong && runActive) {
     runMistakes++;
+    itemMistake = true;
     updateRunTime();
   }
   if (!rootStarted && midi !== startingRoot.midi) {
@@ -743,9 +812,11 @@ function finishExercise(midi, message) {
     setExerciseFeedback("complete", midi, `${message} Choose New run or Restart exercise.`);
     return;
   }
+  recordItem(currentItem, { ok: !itemMistake, time: itemElapsed() });
   runCount++;
   if (runCount >= runLength) {
     runActive = false;
+    recordRun();
     updateRunTime();
     renderExercise();
     const seconds = (runElapsed / 1000).toFixed(1);
@@ -768,9 +839,78 @@ function newExercise() {
       ({ root, type, string: row.string, side }))))).filter(choice =>
       `${choice.root}-${choice.string}-${choice.side}-${choice.type}` !== current &&
       (!chordMode() || chordStartPlayed(choice)));
-  const choice = choices[Math.floor(Math.random() * choices.length)];
+  const pool = practiceFilter(choices, exerciseItem);
+  const choice = pool[Math.floor(Math.random() * pool.length)];
   configureExercise(choice);
   if (!findingRoot()) schedulePatternHint();
+}
+
+// A new run in any mode, also used by Review missed.
+function newRun() {
+  if (clickMode()) restartClickRun(true);
+  else if (triadMode()) restartTriadRun(true);
+  else if (recognitionMode()) restartRecognition(true);
+  else {
+    restartExerciseRun();
+    newExercise();
+  }
+}
+
+// Show answer, or the time limit: the item counts as missed and the run goes on.
+function giveUpItem(timeout) {
+  if (clickMode()) clickGiveUp(timeout);
+  else if (triadMode()) triadGiveUp(timeout);
+  else if (recognitionMode()) recognitionGiveUp(timeout);
+  else if (timeout) exerciseTimeout();
+}
+
+function recognitionGiveUp(timeout) {
+  if (!runActive || runCount >= runLength || nextExerciseTimer !== null) return;
+  const answer = `${pitchLabel(recognitionTarget.midi)} at fret ${recognitionTarget.fret}`;
+  runMistakes++;
+  recordItem(currentItem, { ok: false, time: itemElapsed(), timeout });
+  runCount++;
+  const reason = timeout ? "Time's up!" : "Answer:";
+  if (runCount === runLength) {
+    pauseRunClock();
+    runActive = false;
+    recordRun();
+    updateRunTime();
+    renderExercise();
+    setExerciseFeedback("run-complete", null, `${reason} It was ${answer}. Run complete with ${runMistakes} ${runMistakes === 1 ? "mistake" : "mistakes"}. Choose New run to try again.`);
+    return;
+  }
+  chooseRecognitionTarget();
+  renderExercise();
+  updateRunTime();
+  setExerciseFeedback("error", null, `${reason} It was ${answer}. Find the next note.`);
+}
+
+// Scale and chord modes: time is up, so the exercise ends and its hint is shown.
+function exerciseTimeout() {
+  if (!runActive || exerciseComplete() || exerciseTimedOut) return;
+  pauseRunClock();
+  exerciseTimedOut = true;
+  runMistakes++;
+  recordItem(currentItem, { ok: false, time: itemElapsed(), timeout: true });
+  runCount++;
+  if (!chordMode() || !findingRoot()) {
+    exerciseUI["exercise-hint"].hidden = false;
+    exerciseUI["toggle-hint"].textContent = "Hide hint";
+    exerciseUI["toggle-hint"].setAttribute("aria-expanded", "true");
+  }
+  if (runCount >= runLength) {
+    runActive = false;
+    recordRun();
+    updateRunTime();
+    renderExercise();
+    setExerciseFeedback("run-complete", null, `Time's up! Run complete with ${runMistakes} ${runMistakes === 1 ? "mistake" : "mistakes"}. Choose New run to start again.`);
+    return;
+  }
+  updateRunTime();
+  renderExercise();
+  if (autoContinue) scheduleNext("error", null, "Time's up!", "Next exercise");
+  else setExerciseFeedback("error", null, "Time's up! The hint shows the pattern. Choose New exercise or Restart exercise.");
 }
 
 // Release only after real quiet, not just a failed pitch estimate.
@@ -789,7 +929,7 @@ exerciseUI["restart-exercise"].addEventListener("click", restartExercise);
 exerciseUI["new-exercise"].addEventListener("click", newExercise);
 exerciseUI["toggle-hint"].addEventListener("click", () => {
   if (recognitionMode() || questionMode()) return;
-  if (findingRoot()) return;
+  if (findingRoot() && !exerciseTimedOut) return;
   const show = exerciseUI["exercise-hint"].hidden;
   exerciseUI["exercise-hint"].hidden = !show;
   exerciseUI["toggle-hint"].textContent = show ? "Hide hint" : "Show hint";
@@ -927,6 +1067,8 @@ function saveSettings() {
       recognitionNotes,
       frameFrets,
       frameStrings,
+      practiceSet,
+      timeLimit,
       strings: [...recognitionStrings].sort((a, b) => a - b)
     }));
   } catch {
@@ -936,10 +1078,12 @@ function saveSettings() {
 
 function restoreSettings() {
   const saved = loadSettings();
-  if (saved.theme === "neon") {
-    elements.theme.value = "neon";
-    document.documentElement.setAttribute("data-theme", "neon");
-  }
+  // Dark neon is the default; Classic green only when it was chosen.
+  const theme = saved.theme === "classic" ? "classic" : "neon";
+  elements.theme.value = theme;
+  document.documentElement?.setAttribute("data-theme", theme);
+  setPracticeSet(saved.practiceSet);
+  if (Number.isInteger(saved.timeLimit) && saved.timeLimit >= 0 && saved.timeLimit <= 60 && saved.timeLimit % 5 === 0) setTimeLimit(saved.timeLimit);
   // The plain Fretboard recognition mode was removed; its visual version replaces it.
   if (saved.trainingMode === "recognition") saved.trainingMode = "recognition-visual";
   if (["full", "root-first", "chord-first", "recognition-visual", "recognition-click", "triads"].includes(saved.trainingMode)) {
@@ -983,6 +1127,7 @@ function restoreSettings() {
 
 initClickTrainer();
 initTriadTrainer();
+initProgress();
 restoreSettings();
 restartExerciseRun();
 configureExercise({ root: "A", string: 6, side: "right", type: "minor" });
