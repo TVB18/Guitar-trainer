@@ -1,0 +1,30 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { trainer } = require('./helpers/trainer.cjs');
+
+test('recognition clock and progress wait for New run after settings changes and reset', () => {
+  const app = trainer();
+  app.nodes['training-mode'].value = 'recognition-visual';
+  app.nodes['training-mode'].handlers.change();
+  assert.equal(app.read('runStartedAt'), null);
+  app.read('handleExerciseNote(recognitionTarget.midi)');
+  assert.equal(app.read('runCount'), 0);
+  assert.equal(app.nodes['restart-exercise'].hidden, true);
+  app.nodes['new-exercise'].handlers.click();
+  assert.equal(app.read('runActive'), true);
+  assert.notEqual(app.read('runStartedAt'), null);
+  app.nodes['train-string-6'].checked = false;
+  app.nodes['train-string-6'].handlers.change();
+  assert.equal(app.read('runStartedAt'), null);
+  assert.equal(app.read('runActive'), false);
+  app.read('startRunClock()');
+  assert.equal(app.read('runStartedAt'), null);
+  app.nodes['new-exercise'].handlers.click();
+  app.read('handleExerciseNote(recognitionTarget.midi)');
+  app.nodes['reset-clock'].handlers.click();
+  assert.equal(app.read('runTimer'), null);
+  assert.equal(app.read('runActive'), false);
+  assert.equal(app.read('runCount'), 0);
+  assert.equal(app.nodes['run-time'].textContent, 'Time: 0.0 s');
+  assert.equal(app.nodes['run-average'].textContent, 'Average: — s/note');
+});

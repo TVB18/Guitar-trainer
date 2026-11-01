@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guitar Trainer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <header>GUITAR TRAINER <span>Note listener</span></header>
+    <div class="theme-control">
+      <label for="theme">Style</label>
+      <select id="theme"><option value="classic">Classic green</option><option value="neon">Dark neon</option></select>
+    </div>
+
+    <h1>Play a note. See what you hear.</h1>
+    <p class="intro">Pick one string and let it ring.</p>
+
+    <div class="workspace">
+    <section class="card listener" aria-labelledby="listener-title">
+      <h2 id="listener-title">Listening</h2>
+      <p id="status" role="status">Ready when you are</p>
+
+      <div id="note">—</div>
+      <div id="octave">Waiting for a note</div>
+
+      <div class="meter">
+        <div class="labels">
+          <span>FLAT</span><span>IN TUNE</span><span>SHARP</span>
+        </div>
+        <div class="track">
+          <div class="center"></div>
+          <div id="needle" hidden></div>
+        </div>
+      </div>
+
+      <div class="readings">
+        <div>FREQUENCY<strong id="frequency">— Hz</strong></div>
+        <div>TUNING<strong id="cents">— cents</strong></div>
+      </div>
+
+      <div class="audio-input-control">
+        <label for="audio-input">Audio input</label>
+        <select id="audio-input" aria-describedby="audio-input-status">
+          <option value="">Browser default</option>
+        </select>
+        <p id="audio-input-status" role="status">Selected: Browser default</p>
+      </div>
+      <button id="start" type="button">Start listening</button>
+      <p id="message">
+        Your microphone audio stays in this browser.
+      </p>
+    </section>
+
+    <section class="card exercise" aria-labelledby="exercise-title">
+      <div class="mode-settings-row">
+      <div class="training-mode-control">
+        <label for="training-mode">Training mode</label>
+        <select id="training-mode">
+          <option value="full">Train scales</option>
+          <option value="root-first">Train scales with first note</option>
+          <option value="chord-first">Train chord with first note</option>
+          <option value="recognition-visual">Fretboard recognition visual</option>
+          <option value="recognition-click">Fretboard recognition click</option>
+          <option value="triads">Spell the triad</option>
+        </select>
+        <p id="training-mode-help" class="exercise-description">The frame shows where the pattern lies. Show hint adds its notes.</p>
+      </div>
+      <fieldset class="settings">
+        <legend>Settings</legend>
+        <label class="auto-continue"><input id="auto-continue" type="checkbox"> Continue automatically</label>
+        <span class="next-delay">
+          <label for="next-delay">Pause before next</label>
+          <input id="next-delay" type="range" min="1" max="10" step="1" value="3">
+          <output id="next-delay-value" for="next-delay">3 s</output>
+        </span>
+      </fieldset>
+      <section id="scoreboard" class="scoreboard" aria-label="Scoreboard" hidden>
+        <h3>Scoreboard</h3>
+        <p id="score-last" class="score-last">Last run: —</p>
+        <p id="score-streak" class="score-streak">Streak: 0 · Best: 0</p>
+        <ol id="score-top10" class="score-top10"></ol>
+        <button id="reset-stats" type="button">Reset stats</button>
+      </section>
+      </div>
+      <div id="run-controls" class="run-controls">
+        <span id="exercise-run-controls">
+          <label for="exercise-run-length">Exercises per run</label>
+          <input id="exercise-run-length" type="number" min="1" max="100" step="1" value="10">
+        </span>
+        <p id="exercise-run-status" role="status"></p>
+      </div>
+      <div id="recognition-controls" hidden>
+        <fieldset id="click-types" class="click-types" hidden>
+          <legend>Question types</legend>
+          <label><input id="click-type-name" type="checkbox" checked> 1 · Name the note</label>
+          <label><input id="click-type-find" type="checkbox"> 2 · Find the note</label>
+          <label><input id="click-type-nearest" type="checkbox"> 3 · Nearest note</label>
+        </fieldset>
+        <fieldset id="triad-types" class="click-types" hidden>
+          <legend>Question types</legend>
+          <label><input id="triad-type-spell" type="checkbox" checked> 1 · Spell the triad</label>
+          <label><input id="triad-type-find" type="checkbox"> 2 · Find the chord</label>
+          <label><input id="triad-type-play" type="checkbox"> 3 · Play the triad (on its own)</label>
+        </fieldset>
+        <label for="run-length" id="run-length-label">Notes per run</label>
+        <input id="run-length" type="number" min="1" max="100" step="1" value="10">
+        <label for="recognition-notes">Note selection</label>
+        <select id="recognition-notes">
+          <option value="natural">Natural notes (C major)</option>
+          <option value="all">All 12 notes</option>
+        </select>
+        <span id="frame-controls" class="frame-controls" hidden>
+          <label for="frame-frets">Frame frets</label>
+          <input id="frame-frets" type="number" min="1" max="16" step="1" value="4">
+          <label for="frame-strings">Frame strings</label>
+          <input id="frame-strings" type="number" min="1" max="6" step="1" value="3">
+        </span>
+        <p role="status"><span id="run-time">Time: 0.0 s</span> · <span id="run-average">Average: 0.00 s/note</span> · <span id="run-mistakes">Mistakes: 0</span></p>
+        <fieldset class="string-selection">
+          <legend>Strings to train</legend>
+          <label><input id="train-string-6" type="checkbox" checked> low E (6)</label>
+          <label><input id="train-string-5" type="checkbox" checked> A (5)</label>
+          <label><input id="train-string-4" type="checkbox" checked> D (4)</label>
+          <label><input id="train-string-3" type="checkbox" checked> G (3)</label>
+          <label><input id="train-string-2" type="checkbox" checked> B (2)</label>
+          <label><input id="train-string-1" type="checkbox" checked> high E (1)</label>
+          <p id="string-selection-help" role="status">Select at least one string. Click New run when ready.</p>
+        </fieldset>
+      </div>
+      <h2 id="exercise-title">A minor pentatonic</h2>
+      <p id="exercise-chord" class="exercise-description"></p>
+      <p id="scale-notes" class="exercise-description"></p>
+      <p id="pattern-hint" role="status" aria-live="polite" hidden></p>
+      <div class="exercise-playing">
+      <div id="starting-pitch" class="starting-pitch">
+      <p id="exercise-direction">Start on the root</p>
+      <p class="expected-label" id="expected-label">STARTING ROOT</p>
+      <div class="requested-note-line"><div id="expected-note">A2</div><span id="note-region" hidden></span></div>
+      <p id="requested-string" hidden></p>
+      <p id="expected-position">String 6 (low E) · Fret 5</p>
+      </div>
+      <div class="exercise-feedback-area">
+      <progress id="exercise-progress" value="0" max="12" aria-label="Distinct pitches played"></progress>
+      <p id="progress-text">0 / 12 distinct pitches</p>
+      <div id="exercise-result" class="exercise-result" role="status" aria-live="polite" aria-atomic="true">
+        <strong id="played-note"></strong>
+        <p id="exercise-feedback">Start listening to begin.</p>
+      </div>
+      </div>
+      </div>
+      <div id="recognition-board" class="recognition-board" hidden>
+        <div class="board-note-column"><span id="board-note" class="board-note"></span><span id="board-chord" class="board-chord" hidden></span></div>
+        <div id="board-scroll" class="board-scroll"></div>
+      </div>
+      <p id="heatmap-legend" class="heatmap-legend" hidden><span class="legend-dot heat-fast"></span> under 2 s <span class="legend-dot heat-medium"></span> 2–5 s <span class="legend-dot heat-slow"></span> over 5 s <span class="legend-dot heat-none"></span> not tried · numbers: average seconds</p>
+      <div id="answer-buttons" class="answer-buttons" hidden></div>
+      <div class="exercise-actions">
+        <button id="new-exercise" type="button">New exercise</button>
+        <button id="restart-exercise" type="button">Restart exercise</button>
+        <button id="reset-clock" type="button" hidden>Stop &amp; reset clock</button>
+        <button id="toggle-heatmap" type="button" hidden>Heatmap</button>
+        <button id="toggle-hint" type="button" aria-expanded="false" aria-controls="exercise-hint">Show hint</button>
+      </div>
+      <div id="exercise-hint" hidden>
+        <p class="board-legend"><span class="legend-dot start"></span> Starting note <span class="legend-dot root"></span> Root <span class="legend-dot chord"></span> Chord shape <span id="legend-scale"><span class="legend-dot scale"></span> Scale note</span> <span class="legend-check">✓</span> Played · R, 3, 5: degree</p>
+        <p id="remaining-notes" class="exercise-description"></p>
+        <p class="exercise-description" id="exercise-description">Complete the exercise by playing every distinct pitch in the pattern, including its octave. Repeats are allowed. The microphone checks pitch and octave only; string and fret are playing instructions.</p>
+      </div>
+    </section>
+    </div>
+    <footer>Standard tuning · A4 = 440 Hz · Mute the other strings</footer>
+  </main>
+  <script src="scale-patterns.js"></script>
+  <script src="click-trainer.js"></script>
+  <script src="triad-trainer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
