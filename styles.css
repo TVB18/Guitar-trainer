@@ -87,7 +87,13 @@ button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
 [data-theme="neon"] #new-exercise { border-color: var(--neon-cyan); }
 
 /* Settings frame */
-.settings-frame { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.settings-frame { margin-bottom: 18px; }
+.settings-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 10px; }
+.settings-head { display: flex; align-items: center; gap: 14px; min-width: 0; }
+#toggle-settings { padding: 4px 12px; font-size: 13px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; color: var(--title); }
+.settings-summary { min-width: 0; overflow: hidden; font-size: 13px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
+.settings-frame.collapsed { padding-top: 10px; padding-bottom: 10px; }
+.settings-frame.collapsed > .settings-groups { display: none; }
 .group { padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in srgb, var(--panel-2) 60%, transparent); font-size: 13px; }
 .group h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .group > select, .group #training-mode { width: 100%; }
@@ -159,12 +165,15 @@ button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
 [data-theme="neon"] #exercise-result.feedback-complete { background: var(--neon-green); border: 4px solid #86f7bb; color: #04130a; box-shadow: 0 0 30px rgba(34, 197, 94, 0.6); }
 [data-theme="neon"] #exercise-result.feedback-run-complete { background: #fbbf24; border: 4px solid #fde68a; color: #1a1200; box-shadow: 0 0 30px rgba(251, 191, 36, 0.6); }
 
-/* Listening card */
-.listener { text-align: center; }
-#status { font-size: 12px; }
-#note { font-size: 60px; line-height: 1.1; font-weight: 700; letter-spacing: -2px; }
-#octave { color: var(--muted); font-size: 13px; }
-.meter { margin: 14px auto 10px; }
+/* Listening strip, under the fretboard */
+.listener-strip { display: grid; grid-template-columns: 150px 120px minmax(120px, 1fr) auto; align-items: center; gap: 8px 18px; margin-top: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-2); text-align: center; }
+.listener-strip[hidden] { display: none; }
+.ls-head { display: flex; flex-direction: column; align-items: stretch; gap: 6px; text-align: left; }
+.ls-title { font-size: 13px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; color: var(--title); }
+#status { font-size: 12px; color: var(--muted); }
+#note { font-size: 40px; line-height: 1.05; font-weight: 700; letter-spacing: -1px; }
+#octave { color: var(--muted); font-size: 12px; }
+.meter { margin: 0; }
 .labels { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 1px; color: var(--muted); }
 .track { position: relative; height: 8px; margin-top: 12px; border-radius: 5px; background: linear-gradient(to right, #edf0e9, #c6e1cf 45%, #c6e1cf 55%, #edf0e9); }
 [data-theme="neon"] .track { background: linear-gradient(to right, #233149, #24758b 45%, #24758b 55%, #233149); }
@@ -172,10 +181,10 @@ button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
 #needle { position: absolute; left: 50%; top: -8px; height: 24px; width: 5px; border-radius: 4px; background: #284c38; transform: translateX(-50%); transition: left 100ms; }
 [data-theme="neon"] :is(.center, #needle) { background: #62f1ff; }
 [data-theme="neon"] #needle { box-shadow: 0 0 8px #62f1ff; }
-.readings { display: flex; justify-content: space-around; gap: 12px; margin: 10px 0; }
+.readings { display: flex; justify-content: space-around; gap: 18px; margin: 0; }
 .readings div { font-size: 10px; letter-spacing: 1px; color: var(--muted); }
 .readings strong { display: block; margin-top: 4px; font-size: 16px; letter-spacing: 0; color: var(--text); font-variant-numeric: tabular-nums; }
-#message { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+#message { grid-column: 1 / -1; margin: 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
 
 /* Fretboard card */
 .recognition-board { padding: 10px 8px 4px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-2); }
@@ -217,6 +226,8 @@ td { padding: 5px 4px; border-bottom: 1px solid color-mix(in srgb, var(--border)
 .mini-grid { display: grid; gap: 2px; font-size: 9px; color: var(--muted); }
 .mini-grid.frets { grid-template-columns: 14px repeat(16, 1fr); }
 .mini-grid.patterns { grid-template-columns: 52px repeat(5, 1fr); }
+.mini-grid.patterns .mini-cell { height: 11px; }
+.mini-grid.patterns .mini-label { line-height: 11px; }
 .mini-grid.chords { gap: 3px; }
 .mini-label { text-align: center; line-height: 14px; }
 .mini-label.row-label { text-align: right; padding-right: 4px; white-space: nowrap; }
@@ -258,6 +269,13 @@ footer { margin-top: 18px; text-align: center; color: var(--muted); font-size: 1
 .board-inlay { fill: #d6ded2; }
 .board-label { fill: #5f7466; font-size: 11px; font-family: inherit; }
 .board-muted { fill: #b3261e; font-size: 14px; font-weight: 800; font-family: inherit; }
+.board-tag rect { fill: var(--chord-colour, #37674d); }
+.board-tag.scale-tag rect { fill: #37674d; }
+.board-tag text { fill: white; font-size: 15px; font-weight: 800; }
+.board-tag .tag-sub { font-size: 12px; font-weight: 700; }
+[data-theme="neon"] .board-tag text { fill: #0b1220; }
+[data-theme="neon"] .board-tag rect { filter: drop-shadow(0 0 6px var(--chord-colour)); }
+[data-theme="neon"] .board-tag.scale-tag rect { fill: var(--neon-cyan); filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.6)); }
 .board-frame { fill: rgba(55, 103, 77, 0.14); stroke: #37674d; stroke-width: 3; }
 .board-dot circle { fill: #ffffff; stroke: #73927b; stroke-width: 1.5; }
 .board-dot text { fill: #243d32; font-family: inherit; }
@@ -376,6 +394,10 @@ footer { margin-top: 18px; text-align: center; color: var(--muted); font-size: 1
   .deck-left { display: contents; }
   .question-card { order: 1; }
   .board-card { order: 2; }
-  #listener-card { order: 3; }
   .stats-card { order: 4; }
+}
+@media (max-width: 860px) {
+  .listener-strip { grid-template-columns: 1fr 1fr; }
+  .listener-strip .meter, .listener-strip .readings { grid-column: 1 / -1; }
+  .settings-summary { white-space: normal; }
 }

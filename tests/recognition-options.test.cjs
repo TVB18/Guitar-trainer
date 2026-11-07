@@ -72,7 +72,7 @@ document.documentElement = { setAttribute(key, value) { this[key] = value; } };
   app.nodes['train-string-6'].checked = true;
   app.nodes['train-string-6'].handlers.change();
   assert.deepEqual(JSON.parse(app.read('testStore["guitar-trainer-settings"]')),
-    { theme: 'neon', trainingMode: 'recognition-visual', runLength: 7, exerciseRunLength: 10, autoContinue: false, nextDelay: 3, clickTypes: ['name'], triadTypes: ['spell'], recognitionNotes: 'all', frameFrets: 4, frameStrings: 3, practiceSet: 'all', timeLimit: 0, strings: [2, 3, 6] });
+    { theme: 'neon', trainingMode: 'recognition-visual', runLength: 7, exerciseRunLength: 10, autoContinue: false, nextDelay: 3, clickTypes: ['name'], triadTypes: ['spell'], recognitionNotes: 'all', frameFrets: 4, frameStrings: 3, practiceSet: 'all', timeLimit: 0, settingsCollapsed: false, strings: [2, 3, 6] });
 });
 
 test('broken or blocked storage falls back to the defaults', () => {

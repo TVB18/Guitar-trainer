@@ -17,11 +17,18 @@ board.
 ## Layout and progress
 
 The page has one Settings frame on top (training mode, practice set, question
-types, run length, strings, flow and microphone); groups that do not apply to
-the current mode are hidden. Below it: the Question card with Show hint, Show
-answer and the run buttons; the Fretboard with the answer grid; and the Stats
-card. Modes that use the microphone also show the Listening box (note, tuning,
-Hz and cents). A second row shows a per-item table (worst first), charts of
+types, run length, strings, flow and audio input); groups that do not apply to
+the current mode are hidden. The Settings button folds the frame to a one-line
+summary; the page remembers whether it is open. Below it: the Question card
+with Show hint, Show answer and the run buttons; the Fretboard with the answer
+grid; and the Stats card. Modes that use the microphone show a Listening strip
+right under the fretboard (Start listening, note, tuning, Hz and cents).
+
+On the fretboard, the scale name (scale modes) or the coloured chord (chord
+and triad modes) sits as a tag on top of the frame, so the request is where
+the eyes already are.
+
+A second row shows a per-item table (worst first), charts of
 accuracy and average time per run, a heatmap with the top 5 fails, and the
 Top 10 runs.
 

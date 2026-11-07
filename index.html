@@ -18,7 +18,12 @@
 
     <!-- Settings frame: every setting of every mode. Groups that do not apply
          to the current mode are hidden by app.js. -->
-    <section class="card settings-frame" aria-label="Settings">
+    <section id="settings-frame" class="card settings-frame" aria-label="Settings">
+      <div class="settings-head">
+        <button id="toggle-settings" type="button" aria-expanded="true" aria-controls="settings-frame">▾ Settings</button>
+        <span id="settings-summary" class="settings-summary" hidden></span>
+      </div>
+      <div class="settings-groups">
       <div class="group">
         <h4>Training</h4>
         <select id="training-mode" aria-label="Training mode">
@@ -112,7 +117,6 @@
       </div>
       <div class="group">
         <h4>Microphone</h4>
-        <button id="start" type="button">Start listening</button>
         <div class="audio-input-control">
           <label for="audio-input">Audio input</label>
           <select id="audio-input" aria-describedby="audio-input-status">
@@ -121,6 +125,7 @@
           <p id="audio-input-status" class="help" role="status">Selected: Browser default</p>
         </div>
         <p id="mic-note" class="help" hidden>Not needed in this mode.</p>
+      </div>
       </div>
     </section>
 
@@ -158,21 +163,6 @@
             <p id="exercise-feedback">Start listening to begin.</p>
           </div>
         </section>
-
-        <section id="listener-card" class="card listener" aria-labelledby="listener-title">
-          <div class="card-title"><span id="listener-title">Listening</span><small id="status" role="status">Ready when you are</small></div>
-          <div id="note">—</div>
-          <div id="octave">Waiting for a note</div>
-          <div class="meter">
-            <div class="labels"><span>FLAT</span><span>IN TUNE</span><span>SHARP</span></div>
-            <div class="track"><div class="center"></div><div id="needle" hidden></div></div>
-          </div>
-          <div class="readings">
-            <div>FREQUENCY<strong id="frequency">— Hz</strong></div>
-            <div>TUNING<strong id="cents">— cents</strong></div>
-          </div>
-          <p id="message">Your microphone audio stays in this browser.</p>
-        </section>
       </div>
 
       <section class="card board-card">
@@ -182,6 +172,24 @@
           <div id="board-scroll" class="board-scroll"></div>
         </div>
         <p id="heatmap-legend" class="heatmap-legend" hidden><span class="legend-dot heat-fast"></span> under 2 s <span class="legend-dot heat-medium"></span> 2–5 s <span class="legend-dot heat-slow"></span> over 5 s <span class="legend-dot heat-none"></span> not tried · numbers: average seconds</p>
+        <!-- Listening strip: right under the fretboard, where the eyes already are. -->
+        <div id="listener-card" class="listener-strip" aria-labelledby="listener-title">
+          <div class="ls-head">
+            <span id="listener-title" class="ls-title">Listening</span>
+            <button id="start" type="button">Start listening</button>
+            <small id="status" role="status">Ready when you are</small>
+          </div>
+          <div class="ls-note"><div id="note">—</div><div id="octave">Waiting for a note</div></div>
+          <div class="meter">
+            <div class="labels"><span>FLAT</span><span>IN TUNE</span><span>SHARP</span></div>
+            <div class="track"><div class="center"></div><div id="needle" hidden></div></div>
+          </div>
+          <div class="readings">
+            <div>FREQUENCY<strong id="frequency">— Hz</strong></div>
+            <div>TUNING<strong id="cents">— cents</strong></div>
+          </div>
+          <p id="message">Your microphone audio stays in this browser.</p>
+        </div>
         <div id="answer-area" class="answer-area">
           <div class="card-title"><span id="answer-heading">Answer grid</span><small id="answer-caption"></small></div>
           <div id="answer-buttons" class="answer-buttons" hidden></div>

@@ -148,7 +148,7 @@ test('type 3: find the root in its frame, then play the triad', () => {
   assert.equal(app.read('triadQuestion.rootFound'), true);
   assert.match(app.nodes['exercise-title'].className, /chord-title/);
   assert.equal((app.nodes['board-scroll'].innerHTML.match(/class="board-muted"/g) || []).length, 3);
-  assert.match(app.nodes['board-chord'].innerHTML, /chord-symbol/);
+  assert.match(app.nodes['board-scroll'].innerHTML, /board-tag chord-/);
   answer(app);
   assert.equal(app.read('runCount'), 1);
 });

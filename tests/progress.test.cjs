@@ -150,3 +150,27 @@ document.documentElement = { setAttribute(key, value) { this[key] = value; } };
   assert.equal(app.read('timeLimit'), 15);
   assert.equal(app.nodes['time-limit-value'].textContent, '15 s');
 });
+
+test('the Settings frame folds to a one-line summary and remembers it', () => {
+  const app = trainer(48000, `var testStore = {};
+var localStorage = { getItem: key => testStore[key] ?? null, setItem: (key, value) => { testStore[key] = value; } };
+` + code);
+  assert.equal(app.nodes['settings-summary'].hidden, true);
+  app.nodes['toggle-settings'].handlers.click();
+  assert.match(app.nodes['settings-frame'].className, /collapsed/);
+  assert.equal(app.nodes['settings-summary'].hidden, false);
+  assert.match(app.nodes['settings-summary'].textContent, /^Train scales · All · 10 per run · manual next · no time limit$/);
+  assert.equal(app.nodes['toggle-settings'].textContent, '▸ Settings');
+  assert.equal(JSON.parse(app.read('testStore["guitar-trainer-settings"]')).settingsCollapsed, true);
+  app.nodes['toggle-settings'].handlers.click();
+  assert.doesNotMatch(app.nodes['settings-frame'].className, /collapsed/);
+});
+
+test('the scale name sits as a tag on top of the pattern frame', () => {
+  const app = trainer();
+  app.nodes['training-mode'].value = 'full';
+  app.nodes['training-mode'].handlers.change();
+  const name = app.nodes['exercise-title'].textContent;
+  assert.match(name, /pentatonic$/);
+  assert.match(app.nodes['board-scroll'].innerHTML, new RegExp(`<g class="board-tag scale-tag">.*<tspan class="tag-main">${name}</tspan>`));
+});

@@ -74,7 +74,7 @@ const exerciseUI = Object.fromEntries([
   "recognition-controls", "run-length", "run-time", "run-average", "recognition-notes",
   "starting-pitch", "requested-string", "string-selection-help", "note-region",
   "recognition-board", "board-note", "board-chord", "board-scroll", "frame-controls", "frame-frets", "frame-strings", "run-mistakes",
-  "practice-set", "time-limit", "time-limit-value", "time-bar", "time-bar-fill", "show-answer", "listener-card", "mic-note",
+  "settings-frame", "toggle-settings", "settings-summary", "practice-set", "time-limit", "time-limit-value", "time-bar", "time-bar-fill", "show-answer", "listener-card", "mic-note",
   "types-group", "strings-group", "question-heading", "question-count", "answer-area", "answer-heading", "answer-caption",
   "pitch-chips", "board-caption", "stat-tiles", "stat-last", "round-summary", "review-missed", "items-heading", "item-table",
   "chart-accuracy", "chart-time", "time-chart-heading", "mini-heatmap", "mini-heat-caption", "top-fails", "top10-unit", "run-status-line",
@@ -158,8 +158,13 @@ function chooseRecognitionFrame() {
 // One fretboard for every visual mode: open string through fret 15, high e on top.
 // The requested string is coloured, with its label beside the board. A frame and
 // note markers (root, chord tone, scale note; ✓ when played) are optional.
-function drawBoard({ string: requested, label, chord = null, frame = null, notes = [], muted = [], highlightFret = null, clickable = false, focusFret = null, description }) {
-  const left = 34, open = 34, cell = 40, top = 20, gap = 30;
+function drawBoard({ string: requested, label, chord = null, tag = null, frame = null, notes = [], muted = [], highlightFret = null, clickable = false, focusFret = null, description }) {
+  // With a frame, the chord (or the scale name) sits as a tag on top of it,
+  // where the eyes already are; the board gets extra room above for it.
+  const boardTag = !frame ? null
+    : chord ? { text: chord.symbol, sub: chordTypes[chord.type].name, kind: `chord-${chord.type}` }
+      : tag ? { text: tag, sub: "", kind: "scale-tag" } : null;
+  const left = 34, open = 34, cell = 40, top = boardTag ? 46 : 20, gap = 30;
   const fretX = fret => fret === 0 ? left : left + open + (fret - 1) * cell;
   const cellWidth = fret => fret === 0 ? open : cell;
   const stringY = string => top + (string - 1) * gap;
@@ -199,6 +204,15 @@ function drawBoard({ string: requested, label, chord = null, frame = null, notes
       `<text class="dot-degree" x="${x}" y="${y + 8.5}" text-anchor="middle">${note.degree}</text>` +
       `${note.played ? `<g class="board-check"><circle class="check-dot" cx="${x + 11}" cy="${y - 10}" r="5.5"/><text x="${x + 11}" y="${y - 7.5}" text-anchor="middle">✓</text></g>` : ""}</g>`);
   }
+  if (boardTag) {
+    const frameLeft = fretX(frame.fromFret), frameRight = fretX(frame.toFret) + cellWidth(frame.toFret);
+    const tagWidth = boardTag.text.length * (boardTag.sub ? 12 : 8.5) + boardTag.sub.length * 7 + (boardTag.sub ? 30 : 22);
+    const centre = Math.max(left + tagWidth / 2, Math.min(width - 6 - tagWidth / 2, (frameLeft + frameRight) / 2));
+    const tagY = stringY(frame.fromString) - gap / 2 + 1 - 27;
+    parts.push(`<g class="board-tag ${boardTag.kind}"><rect x="${centre - tagWidth / 2}" y="${tagY}" width="${tagWidth}" height="24" rx="8"/>` +
+      `<text x="${centre}" y="${tagY + 17}" text-anchor="middle"><tspan class="tag-main">${boardTag.text}</tspan>` +
+      `${boardTag.sub ? `<tspan class="tag-sub" dx="6">${boardTag.sub}</tspan>` : ""}</text></g>`);
+  }
   // Clickable cells go on top, one per string and fret.
   if (clickable) {
     for (let string = 1; string <= 6; string++) {
@@ -217,7 +231,7 @@ function drawBoard({ string: requested, label, chord = null, frame = null, notes
   // The chord label sits in the same column, on the half away from the root label.
   // Symbol and type come from chordTypes, so they are safe to insert as HTML.
   const chordLabel = exerciseUI["board-chord"];
-  chordLabel.hidden = !chord;
+  chordLabel.hidden = !chord || Boolean(boardTag);
   chordLabel.className = chord ? `board-chord chord-${chord.type}` : "board-chord";
   chordLabel.innerHTML = chord ? `<span class="chord-symbol">${chord.symbol}</span><span class="chord-type">${chordTypes[chord.type].name}</span>` : "";
   chordLabel.style.top = requested >= 4 ? "4px" : "auto";
@@ -287,6 +301,7 @@ function drawScaleBoard() {
     string: startingRoot.string,
     label: pitchLabel(startingRoot.midi),
     chord: chord && !rootOnly ? { symbol: chordSymbol(), type: exercise.type } : null,
+    tag: chord || rootOnly ? null : `${exercise.root} ${exercise.type} pentatonic`,
     frame,
     notes: hint ? marks : rootOnly ? [] : marks.filter(note => note.played),
     muted: chord && !rootOnly ? exercise.mutedStrings : [],
@@ -552,6 +567,7 @@ function renderExercise() {
   renderExerciseView();
   renderAnswerArea();
   renderProgress();
+  renderSettingsFrame();
 }
 
 function renderAnswerArea() {
@@ -1053,7 +1069,37 @@ function loadSettings() {
   }
 }
 
+// The Settings frame folds away to a one-line summary, to give the training
+// more room. Start listening lives in the Listening strip, so it stays reachable.
+let settingsCollapsed = false;
+const modeNames = { full: "Train scales", "root-first": "Train scales with first note", "chord-first": "Train chord with first note",
+  "recognition-visual": "Fretboard recognition visual", "recognition-click": "Fretboard recognition click", triads: "Spell the triad" };
+
+function settingsSummary() {
+  const scales = !recognitionMode() && !questionMode();
+  const parts = [modeNames[trainingMode] || trainingMode,
+    { all: "All", weakest: "Weakest 5", missed: "Missed in last run" }[practiceSet] || "All",
+    `${scales ? exerciseUI["exercise-run-length"].value : exerciseUI["run-length"].value} per run`,
+    autoContinue ? `auto ${nextExerciseDelay} s` : "manual next",
+    timeLimit ? `limit ${timeLimit} s` : "no time limit"];
+  return parts.join(" · ");
+}
+
+function renderSettingsFrame() {
+  exerciseUI["settings-frame"].className = `card settings-frame${settingsCollapsed ? " collapsed" : ""}`;
+  exerciseUI["toggle-settings"].textContent = settingsCollapsed ? "▸ Settings" : "▾ Settings";
+  exerciseUI["toggle-settings"].setAttribute("aria-expanded", String(!settingsCollapsed));
+  exerciseUI["settings-summary"].textContent = settingsSummary();
+  exerciseUI["settings-summary"].hidden = !settingsCollapsed;
+}
+
+exerciseUI["toggle-settings"].addEventListener("click", () => {
+  settingsCollapsed = !settingsCollapsed;
+  saveSettings();
+});
+
 function saveSettings() {
+  renderSettingsFrame();
   try {
     localStorage.setItem(settingsKey, JSON.stringify({
       theme: elements.theme.value === "neon" ? "neon" : "classic",
@@ -1069,6 +1115,7 @@ function saveSettings() {
       frameStrings,
       practiceSet,
       timeLimit,
+      settingsCollapsed,
       strings: [...recognitionStrings].sort((a, b) => a - b)
     }));
   } catch {
@@ -1084,6 +1131,8 @@ function restoreSettings() {
   document.documentElement?.setAttribute("data-theme", theme);
   setPracticeSet(saved.practiceSet);
   if (Number.isInteger(saved.timeLimit) && saved.timeLimit >= 0 && saved.timeLimit <= 60 && saved.timeLimit % 5 === 0) setTimeLimit(saved.timeLimit);
+  settingsCollapsed = saved.settingsCollapsed === true;
+  renderSettingsFrame();
   // The plain Fretboard recognition mode was removed; its visual version replaces it.
   if (saved.trainingMode === "recognition") saved.trainingMode = "recognition-visual";
   if (["full", "root-first", "chord-first", "recognition-visual", "recognition-click", "triads"].includes(saved.trainingMode)) {

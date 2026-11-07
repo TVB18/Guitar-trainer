@@ -70,11 +70,10 @@ test('chord mode finds the root first, then frames the grip and plays its notes'
   assert.equal(app.nodes['board-chord'].hidden, true);
   app.read('handleExerciseNote(45)');
   assert.equal(app.nodes['exercise-title'].textContent, 'Am');
-  // The chord label shows symbol and type, coloured by chord type; so does the title.
-  assert.equal(app.nodes['board-chord'].innerHTML, '<span class="chord-symbol">Am</span><span class="chord-type">minor</span>');
-  assert.equal(app.nodes['board-chord'].className, 'board-chord chord-minor');
-  assert.equal(app.nodes['board-chord'].hidden, false);
-  assert.equal(app.nodes['board-chord'].style.top, '4px');
+  // The chord tag sits on top of the frame, with symbol and type, coloured by
+  // chord type; so does the title. The label beside the board stays hidden.
+  assert.match(app.nodes['board-scroll'].innerHTML, /<g class="board-tag chord-minor">.*<tspan class="tag-main">Am<\/tspan><tspan class="tag-sub" dx="6">minor<\/tspan>/);
+  assert.equal(app.nodes['board-chord'].hidden, true);
   assert.equal(app.nodes['exercise-title'].className, 'chord-title chord-minor');
   assert.match(app.nodes['training-mode-help'].textContent, /mute each note before the next one/);
   assert.equal(app.nodes['exercise-chord'].textContent, 'Chord tones: A – C – E · Strings 1–6');
